@@ -216,6 +216,10 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
+	err = s.resetJobMaster(ctx)
+	if err != nil {
+		return err
+	}
 
 	// start background managers
 	s.executorManager.Start(ctx)
@@ -271,6 +275,10 @@ func (s *Server) startGrpcSrv() (err error) {
 	// start grpc server
 
 	s.etcdClient, err = etcdutil.CreateClient([]string{withHost(s.cfg.MasterAddr)}, nil)
+	if err != nil {
+		return
+	}
+	s.jobManager.etcdClient = s.etcdClient
 	return
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/hanfei1991/microcosm/pkg/autoid"
 	"github.com/hanfei1991/microcosm/pkg/errors"
 	"github.com/pingcap/ticdc/dm/pkg/log"
+	"go.etcd.io/etcd/clientv3"
 	"go.uber.org/zap"
 )
 
@@ -27,6 +28,8 @@ type JobManager struct {
 	idAllocater autoid.JobIDAllocator
 	clients     *client.Manager
 	masterAddrs []string
+
+	etcdClient *clientv3.Client
 }
 
 func (j *JobManager) Start(ctx context.Context) error {
@@ -50,28 +53,37 @@ func (j *JobManager) CancelJob(ctx context.Context, req *pb.CancelJobRequest) *p
 	if err != nil {
 		return &pb.CancelJobResponse{Err: &pb.Error{Message: err.Error()}}
 	}
+	err = j.removeJobMeta(ctx, &model.JobMaster{ID: model.ID(req.JobId)})
+	if err != nil {
+		log.L().Warn("failed to remove job master meta", zap.Error(err))
+	}
 	delete(j.jobMasters, model.ID(req.JobId))
 	return &pb.CancelJobResponse{}
 }
 
 // SubmitJob processes "SubmitJobRequest".
 func (j *JobManager) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) *pb.SubmitJobResponse {
-	var jobTask *model.Task
 	log.L().Logger.Info("submit job", zap.String("config", string(req.Config)))
-	resp := &pb.SubmitJobResponse{}
+	var (
+		jobTask *model.Task
+		jm      *model.JobMaster
+		jmBytes []byte
+		resp    = &pb.SubmitJobResponse{}
+		err     error
+	)
 	switch req.Tp {
 	case pb.SubmitJobRequest_Benchmark:
 		id := j.idAllocater.AllocJobID()
 		// TODO: supposing job master will be running independently, then the
 		// addresses of server can change because of failover, the job master
 		// should have ways to detect and adapt automatically.
-		masterConfig := &model.JobMaster{
+		jm = &model.JobMaster{
 			ID:          model.ID(id),
 			Tp:          model.Benchmark,
 			Config:      req.Config,
 			MasterAddrs: j.masterAddrs,
 		}
-		masterConfigBytes, err := json.Marshal(masterConfig)
+		jmBytes, err = json.Marshal(jm)
 		if err != nil {
 			resp.Err = errors.ToPBError(err)
 			return resp
@@ -79,7 +91,7 @@ func (j *JobManager) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) *p
 		jobTask = &model.Task{
 			ID:   model.ID(id),
 			OpTp: model.JobMasterType,
-			Op:   masterConfigBytes,
+			Op:   jmBytes,
 			Cost: 1,
 		}
 	default:
@@ -87,17 +99,42 @@ func (j *JobManager) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) *p
 		resp.Err = errors.ToPBError(err)
 		return resp
 	}
+
+	err = j.storeJobMeta(ctx, jm, jmBytes)
+	if err != nil {
+		log.L().Error("store job meta failed", zap.Error(err))
+		err := errors.ErrBuildJobFailed.GenWithStack("failed to store job meta")
+		resp.Err = errors.ToPBError(err)
+		return resp
+	}
+
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	j.jobMasters[jobTask.ID] = jobTask
-	err := j.Master.DispatchTasks(ctx, []*model.Task{jobTask})
+	err = j.Master.DispatchTasks(ctx, []*model.Task{jobTask})
 	if err != nil {
+		// remove job metadata if dispatch tasks failed
+		err2 := j.removeJobMeta(ctx, jm)
+		if err2 != nil {
+			log.L().Warn("failed to remove job meta", zap.Error(err2))
+		}
+		log.L().Error("failed to dispatch tasks", zap.Error(err))
 		resp.Err = errors.ToPBError(err)
 		return resp
 	}
 	log.L().Logger.Info("finished dispatch job")
 	resp.JobId = int32(jobTask.ID)
 	return resp
+}
+
+func (j *JobManager) storeJobMeta(ctx context.Context, jm *model.JobMaster, jmBytes []byte) error {
+	_, err := j.etcdClient.Put(ctx, jm.EtcdKey(), string(jmBytes))
+	return err
+}
+
+func (j *JobManager) removeJobMeta(ctx context.Context, jm *model.JobMaster) error {
+	_, err := j.etcdClient.Delete(ctx, jm.EtcdKey())
+	return err
 }
 
 func NewJobManager(

@@ -36,3 +36,29 @@ func (s *Server) resetExecHandler(value []byte) error {
 	s.executorManager.RegisterExec(info)
 	return nil
 }
+
+// resetJobMaster loads existing job master information from meta store
+func (s *Server) resetJobMaster(ctx context.Context) error {
+	resp, err := s.etcdClient.Get(ctx, adapter.JobMasterKeyAdapter.Path(), clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	for _, kv := range resp.Kvs {
+		err := s.resetJobMasterHandler(kv.Value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// resetJobMasterHandler unmarshals job master info and resets related information
+func (s *Server) resetJobMasterHandler(value []byte) error {
+	jm := &model.JobMaster{}
+	err := json.Unmarshal(value, jm)
+	if err != nil {
+		return err
+	}
+	// TODO: reset job master information
+	return nil
+}

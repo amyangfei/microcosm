@@ -1,6 +1,9 @@
 package model
 
-import "github.com/hanfei1991/microcosm/pb"
+import (
+	"github.com/hanfei1991/microcosm/pb"
+	"github.com/hanfei1991/microcosm/pkg/adapter"
+)
 
 type (
 	// ID is the global identified number for jobs and tasks.
@@ -22,6 +25,11 @@ type JobMaster struct {
 	Tp          WorkloadType `json:"type"`
 	Config      []byte       `json:"config"`
 	MasterAddrs []string     `json:"masters"`
+}
+
+// EtcdKey returns JobMaster key that is used in metastore
+func (jm *JobMaster) EtcdKey() string {
+	return adapter.JobMasterKeyAdapter.Encode(string(jm.ID))
 }
 
 type Task struct {

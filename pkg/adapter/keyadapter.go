@@ -10,7 +10,7 @@ import (
 
 var (
 	ExecutorInfoKeyAdapter KeyAdapter = keyHexEncoderDecoder("/data-flow/executor/info")
-	JobKeyAdapter          KeyAdapter = keyHexEncoderDecoder("/data-flow/job")
+	JobMasterKeyAdapter    KeyAdapter = keyHexEncoderDecoder("/data-flow/jobmaster")
 )
 
 type KeyAdapter interface {
