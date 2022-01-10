@@ -8,5 +8,5 @@ type Operator interface {
 	// task resource unit will be initialized and returned from this function.
 	Prepare(ctx *TaskContext) (TaskRescUnit, error)
 	Pause() error
-	Close() error
+	Close(ctx *TaskContext) error
 }

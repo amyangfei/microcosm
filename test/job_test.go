@@ -120,9 +120,7 @@ func (t *testJobSuite) TestPause(c *C) {
 	c.Assert(cnt, Less, testJobConfig.TableNum*testJobConfig.RecordCnt)
 	log.L().Logger.Info("has read", zap.Int32("cnt", cnt))
 	time.Sleep(500 * time.Millisecond)
-	c.Assert(executorCtx.TryRecvRecord(), IsNil)
-	time.Sleep(500 * time.Millisecond)
-	c.Assert(executorCtx.TryRecvRecord(), IsNil)
+	c.Assert(executorCtx.RecvRecordUntilClose(), IsNil)
 	cluster.StopCluster()
 }
 

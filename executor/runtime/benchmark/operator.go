@@ -113,7 +113,7 @@ type opReceive struct {
 
 func (o *opReceive) NextWantedInputIdx() int { return runtime.DontNeedData }
 
-func (o *opReceive) Close() error {
+func (o *opReceive) Close(_ *runtime.TaskContext) error {
 	o.cancel()
 	return o.conn.Close()
 }
@@ -213,7 +213,7 @@ type opSyncer struct {
 	baseOp
 }
 
-func (o *opSyncer) Close() error { return nil }
+func (o *opSyncer) Close(_ *runtime.TaskContext) error { return nil }
 
 // TODO communicate with master.
 func (o *opSyncer) Prepare(_ *runtime.TaskContext) (runtime.TaskRescUnit, error) {
@@ -252,7 +252,10 @@ type opSink struct {
 	stats  *recordStats
 }
 
-func (o *opSink) Close() error {
+func (o *opSink) Close(ctx *runtime.TaskContext) error {
+	if test.GetGlobalTestFlag() {
+		ctx.TestCtx.Close()
+	}
 	return o.writer.writeStats(o.stats)
 }
 
@@ -286,7 +289,7 @@ type opProducer struct {
 	checkpoint time.Time
 }
 
-func (o *opProducer) Close() error { return nil }
+func (o *opProducer) Close(_ *runtime.TaskContext) error { return nil }
 
 func (o *opProducer) Prepare(_ *runtime.TaskContext) (runtime.TaskRescUnit, error) {
 	return runtime.NewSimpleTRU(model.Benchmark), nil
@@ -362,7 +365,7 @@ type opBinlog struct {
 	ctx         *runtime.TaskContext
 }
 
-func (o *opBinlog) Close() error {
+func (o *opBinlog) Close(_ *runtime.TaskContext) error {
 	o.server.Stop()
 	close(o.binlogChan)
 	return nil

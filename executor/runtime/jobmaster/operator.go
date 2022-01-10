@@ -36,7 +36,7 @@ func (j *jobMasterAgent) Pause() error {
 	return j.master.PauseAllTasks()
 }
 
-func (j *jobMasterAgent) Close() error {
+func (j *jobMasterAgent) Close(_ *runtime.TaskContext) error {
 	// "Stop" should not be blocked
 	go func() {
 		err := j.master.Stop(context.Background())

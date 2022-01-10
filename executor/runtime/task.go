@@ -195,7 +195,7 @@ func (t *taskContainer) Stop() error {
 	t.stopLock.Lock()
 	defer t.stopLock.Unlock()
 
-	return t.op.Close()
+	return t.op.Close(t.ctx)
 }
 
 func (t *taskContainer) Continue() {
