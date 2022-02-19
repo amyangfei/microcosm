@@ -1,0 +1,6 @@
+master-addr = "0.0.0.0:10341"
+advertise-addr = "127.0.0.1:10341"
+[etcd]
+name = "server-master-1"
+data-dir = "/tmp/df/master"
+

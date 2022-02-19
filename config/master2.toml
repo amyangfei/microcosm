@@ -1,0 +1,8 @@
+master-addr = "0.0.0.0:10342"
+advertise-addr = "127.0.0.1:10342"
+[etcd]
+name = "server-master-2"
+data-dir = "/tmp/df/master2"
+peer-urls = "http://127.0.0.1:10002"
+initial-cluster="server-master-1=http://127.0.0.1:10001,server-master-2=http://127.0.0.1:10002,server-master-3=http://127.0.0.1:10003"
+

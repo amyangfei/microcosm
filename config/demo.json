@@ -1,0 +1,6 @@
+{
+   "srcHost":"127.0.0.1:1234",
+   "srcDir":"/home/apple/work/code/microcosm/bin/source",
+   "dstHost":"127.0.0.1:1234",
+   "dstDir":"/home/apple/work/code/microcosm/bin/target"
+}
