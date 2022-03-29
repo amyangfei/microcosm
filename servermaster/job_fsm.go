@@ -193,25 +193,6 @@ func (fsm *JobFsm) IterPendingJobs(dispatchJobFn func(job *lib.MasterMetaKVData)
 	return nil
 }
 
-func (fsm *JobFsm) IterWaitAckJobs(dispatchJobFn func(job *lib.MasterMetaKVData) (string, error)) error {
-	fsm.jobsMu.Lock()
-	defer fsm.jobsMu.Unlock()
-
-	for id, job := range fsm.waitAckJobs {
-		duration := fsm.clocker.Since(job.waitAckStartTime)
-		if duration > defaultWorkerTimeout {
-			_, err := dispatchJobFn(job.MasterMetaKVData)
-			if err != nil {
-				return err
-			}
-			fsm.waitAckJobs[id].waitAckStartTime = fsm.clocker.Now()
-			log.L().Info("job master doesn't receive heartbeat in time, recreate it", zap.Any("job", job))
-		}
-	}
-
-	return nil
-}
-
 func (fsm *JobFsm) JobOnline(worker lib.WorkerHandle) error {
 	fsm.jobsMu.Lock()
 	defer fsm.jobsMu.Unlock()

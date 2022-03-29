@@ -261,6 +261,21 @@ func (m *workerManagerImpl) CheckStatusUpdate(cb func(WorkerHandle, *libModel.Wo
 	return nil
 }
 
+// when worker manager state transfers from workerManagerWaitingHeartbeats to
+// workerManagerNormal, workers in tombstone state should be marked as offline.
+func (m *workerManagerImpl) offlineTombstoneWorker() (offlined []*WorkerInfo) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id := range m.tombstones {
+		offlined = append(offlined, &WorkerInfo{
+			ID: id,
+			// other fileds are not used in offlined workers
+		})
+	}
+	m.tombstones = make(map[WorkerID]*libModel.WorkerStatus)
+	return
+}
+
 func (m *workerManagerImpl) Tick(
 	ctx context.Context,
 ) (offlinedWorkers []*WorkerInfo, onlinedWorkers []*WorkerInfo) {
@@ -275,6 +290,7 @@ func (m *workerManagerImpl) Tick(
 		return
 	case workerManagerWaitingHeartbeats:
 		m.checkGracefulPeriodFinished()
+		offlinedWorkers = append(offlinedWorkers, m.offlineTombstoneWorker()...)
 
 		fallthrough
 	case workerManagerNormal:

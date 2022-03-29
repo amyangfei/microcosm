@@ -217,15 +217,6 @@ func (jm *JobManagerImplV2) Tick(ctx context.Context) error {
 		return err
 	}
 
-	err = jm.JobFsm.IterWaitAckJobs(
-		func(job *lib.MasterMetaKVData) (string, error) {
-			return jm.BaseMaster.CreateWorker(
-				job.Tp, job, defaultJobMasterCost)
-		})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
